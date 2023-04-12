@@ -1,5 +1,5 @@
 ---
-- name: add OS specific variables
+- name: Add OS specific variables
   include_vars: '{{ loop_vars }}'
   with_first_found:
     - files:
@@ -21,7 +21,7 @@
     - configuration
     - packages
 
-- name: install logrotate packages
+- name: Ensure the logrotate packages is installed
   become: true
   package:
     name: '{{ logrotate_package }}'
@@ -32,7 +32,7 @@
   tags:
     - packages
 
-- name: create logrotate configuration file
+- name: Ensuer logrotate configuration file exists
   become: true
   template:
     src: 'etc/logrotate.conf.j2'
@@ -44,7 +44,7 @@
     - configuration
   when: logrotate_global_config | bool
 
-- name: create logrotate application configuration files
+- name: Ensure logrotate application configuration files are created
   become: true
   template:
     src: 'etc/logrotate.d/application.j2'
@@ -57,10 +57,25 @@
   tags:
     - configuration
 
-- name: symlink for hourly rotation
+- name: Ensure logrotate.service.d directory exists
   file:
-    path: '/etc/cron.hourly/logrotate'
-    src: '/etc/cron.daily/logrotate'
-    mode: 0644
-    state: link
+    path: /etc/systemd/system/logrotate.timer.d/
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
   when: logrotate_use_hourly_rotation | bool
+  tags:
+    - configuration
+
+- name: Ensure logrotate.timer override file exists
+  template:
+    src: etc/systemd/system/logrotate.timer.d/override.conf.j2
+    dest: /etc/systemd/system/logrotate.timer.d/override.conf
+    owner: root
+    group: root
+    mode: 0644
+  when: logrotate_use_hourly_rotation | bool
+  notify: systemctl daemon-reload
+  tags:
+    - configuration
